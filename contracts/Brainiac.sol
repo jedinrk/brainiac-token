@@ -154,7 +154,7 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted {
                     
                     _approve(address(this), _router, feeRewardAmount);
     
-                    r.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    r.swapExactTokensForETHSupportingFeeOnTransferTokens(
                         feeRewardAmount,
                         0,
                         _feeRewardSwapPath,
