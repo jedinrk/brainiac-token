@@ -1,6 +1,4 @@
-
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import "./interface/IERC20.sol";
@@ -9,8 +7,9 @@ import "./interface/LGEWhitelisted.sol";
 import "./interface/Address.sol";
 import "./interface/IUniswapV2Router02.sol";
 import "./interface/IUniswapV2Factory.sol";
+import "./interface/Pausable.sol";
 
-contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted {
+contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
     
     using SafeMath for uint256;
     using Address for address;
@@ -40,17 +39,17 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted {
 	
 	address[] public _feeRewardSwapPath;
     
-    function initialize(uint256 cap, uint256 feeBurnPct, uint256 feeRewardPct, address feeRewardAddress, address router)
+    function initialize(uint256 tokenCap, uint256 feeBurnPct, uint256 feeRewardPct, address feeRewardAddress, address router)
         public
         initializer
     {
-        require(cap > 0, "ERC20Capped: cap is 0");
+        require(tokenCap > 0, "ERC20Capped: cap is 0");
         
         _name = "GAMEZONE.io";
         _symbol = "GZONE";
         _decimals = 18;
         
-        _cap = cap;
+        _cap = tokenCap;
         
         __Ownable_init();
 		__LGEWhitelisted_init();
@@ -206,7 +205,7 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted {
         return _balances[account];
     }
 
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    function transfer(address recipient, uint256 amount) public whenNotPaused virtual override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
