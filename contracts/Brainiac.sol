@@ -30,6 +30,7 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 
 	uint256 public _feeBurnPct;
 	uint256 public _feeRewardPct;
+	uint256 public _limitPct;
 	
 	address public _feeRewardAddress;
 
@@ -101,6 +102,10 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 	function setFeeExcluded(address a, bool excluded) public onlyOwner {
         _feeExcluded[a] = excluded;
     }
+
+    function setBuyLimit(uint256 limitPct) public onlyOwner {
+        _limitPct = limitPct;
+    }
     
     function mint(address _to, uint256 _amount) public onlyOwner {
         _mint(_to, _amount);
@@ -118,6 +123,7 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 	function _transfer(address sender, address recipient, uint256 amount) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(amount <= _totalSupply.mul(_limitPct).div(10000), "Out of limit per transaction");
 		
         _beforeTokenTransfer(sender, recipient, amount);
 		
