@@ -9,7 +9,7 @@ import "./interface/IUniswapV2Router02.sol";
 import "./interface/IUniswapV2Factory.sol";
 import "./interface/Pausable.sol";
 
-contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
+contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
     
     using SafeMath for uint256;
     using Address for address;
@@ -46,8 +46,8 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
     {
         require(tokenCap > 0, "ERC20Capped: cap is 0");
         
-        _name = "GAMEZONE.io";
-        _symbol = "GZONE";
+        _name = "BrainiacChess";
+        _symbol = "BRAINIAC";
         _decimals = 18;
         
         _cap = tokenCap;
@@ -117,13 +117,15 @@ contract GZONE is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 		
         if (sender == address(0)) { // When minting tokens
             require(totalSupply().add(amount) <= _cap, "ERC20Capped: cap exceeded");
+        } else { // Standard DEX transfers with fee
+            require(amount <= _totalSupply.mul(_limitPct).div(10000), "Out of limit per transaction");
         }
+
     }
 	
 	function _transfer(address sender, address recipient, uint256 amount) internal {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
-        require(amount <= _totalSupply.mul(_limitPct).div(10000), "Out of limit per transaction");
 		
         _beforeTokenTransfer(sender, recipient, amount);
 		
