@@ -13,13 +13,31 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
+  const accounts = await hre.ethers.getSigners();
+
+  const tokenCap = 300000000;
+  const buyLimit = 100;
+  const feeBurnPct = 0;
+  const feeRewardPct = 750;
+  const feeRewardAddress = accounts[0].address;
+  const router = "0x10ed43c718714eb63d5aa57b78b54704e256024e";
   // We get the contract to deploy
-  const Greeter = await hre.ethers.getContractFactory("Greeter");
-  const greeter = await Greeter.deploy("Hello, Hardhat!");
+  const Brainiac = await hre.ethers.getContractFactory("Brainiac");
+  const brainiac = await Brainiac.deploy();
 
-  await greeter.deployed();
+  await brainiac.deployed();
+  console.log("Brainiac deployed to:", brainiac.address);
 
-  console.log("Greeter deployed to:", greeter.address);
+  const initializer = await brainiac.initialize(
+    tokenCap,
+    buyLimit,
+    feeBurnPct,
+    feeRewardPct,
+    feeRewardAddress,
+    router
+  );
+
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
