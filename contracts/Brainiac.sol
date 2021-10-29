@@ -40,7 +40,7 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 	
 	address[] public _feeRewardSwapPath;
     
-    function initialize(uint256 tokenCap, uint256 feeBurnPct, uint256 feeRewardPct, address feeRewardAddress, address router)
+    function initialize(uint256 tokenCap, uint256 buyLimit, uint256 feeBurnPct, uint256 feeRewardPct, address feeRewardAddress, address router)
         public
         initializer
     {
@@ -51,6 +51,8 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
         _decimals = 18;
         
         _cap = tokenCap;
+
+        _limitPct = buyLimit;
         
         __Ownable_init();
 		__LGEWhitelisted_init();
@@ -199,6 +201,10 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 
     function cap() public view returns (uint256) {
         return _cap;
+    }
+    
+    function limit() public view returns (uint256) {
+        return _limitPct;
     }
 
     function decimals() public view override returns (uint8) {
