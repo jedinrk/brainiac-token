@@ -17,18 +17,15 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
     mapping (address => uint256) private _balances;
 
     mapping (address => mapping (address => uint256)) private _allowances;
-
-    uint256 private _totalSupply;
     
-    uint256 private _cap;
-
     string private _name;
     string private _symbol;
     uint8 private _decimals;
-    
+
+    uint256 private _totalSupply;
+
     mapping(address => bool) public _feeExcluded;
 
-	uint256 public _feeBurnPct;
 	uint256 public _feeRewardPct;
 	uint256 public _limitPct;
 	
@@ -40,18 +37,15 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 	
 	address[] public _feeRewardSwapPath;
     
-    function initialize(uint256 tokenCap, uint256 buyLimit, uint256 feeBurnPct, uint256 feeRewardPct, address feeRewardAddress, address router)
+    function initialize(uint256 buyLimit, uint256 feeRewardPct, address feeRewardAddress, address router)
         public
         initializer
     {
-        require(tokenCap > 0, "ERC20Capped: cap is 0");
         
         _name = "BrainiacChess";
         _symbol = "BRAINIAC";
         _decimals = 18;
         
-        _cap = tokenCap;
-
         _limitPct = buyLimit;
         
         __Ownable_init();
@@ -75,22 +69,22 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
         
 		}
 		
-		setFees(feeBurnPct, feeRewardPct, feeRewardSwapPath, feeRewardAddress);
+		setFees(feeRewardPct, feeRewardSwapPath, feeRewardAddress);
 		
 		setFeeExcluded(_msgSender(), true);
 		setFeeExcluded(address(this), true);
+
+        _mint(_msgSender(), 300000000 * 10 ** decimals());
     }
     
     function setRouter(address r) public onlyOwner {
         _router = r;
     }
     
-    function setFees(uint256 feeBurnPct, uint256 feeRewardPct, address[] memory feeRewardSwapPath, address feeRewardAddress) public onlyOwner {
-        require(feeBurnPct.add(feeRewardPct) <= 10000, "Fees must not total more than 100%");
+    function setFees(uint256 feeRewardPct, address[] memory feeRewardSwapPath, address feeRewardAddress) public onlyOwner {
         require(feeRewardSwapPath.length != 1, "Invalid path");
 		require(feeRewardAddress != address(0), "Fee reward address must not be zero address");
 		
-		_feeBurnPct = feeBurnPct;
 		_feeRewardPct = feeRewardPct;
 		_feeRewardSwapPath = feeRewardSwapPath;
 		_feeRewardAddress = feeRewardAddress;
@@ -109,19 +103,13 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
         _limitPct = limitPct;
     }
     
-    function mint(address _to, uint256 _amount) public onlyOwner {
-        _mint(_to, _amount);
-    }
     
     function _beforeTokenTransfer(address sender, address recipient, uint256 amount) internal {
         
 		LGEWhitelisted._applyLGEWhitelist(sender, recipient, amount);
 		
-        if (sender == address(0)) { // When minting tokens
-            require(totalSupply().add(amount) <= _cap, "ERC20Capped: cap exceeded");
-        } else { // Standard DEX transfers with fee
-            require(amount <= _totalSupply.mul(_limitPct).div(10000), "Out of limit per transaction");
-        }
+        // Standard DEX transfers with fee
+        require(amount <= _totalSupply.mul(_limitPct).div(10000), "Out of limit per transaction");
 
     }
 	
@@ -134,19 +122,7 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 		_balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
 		
 		if(_pair[recipient] && !_feeExcluded[sender]) {
-			
-			uint256 feeBurnAmount = 0;
-			
-			if(_feeBurnPct > 0) {
-			
-				feeBurnAmount = amount.mul(_feeBurnPct).div(10000);
-				
-				_cap = _cap.sub(feeBurnAmount);
-				_totalSupply = _totalSupply.sub(feeBurnAmount);
-				emit Transfer(sender, address(0), feeBurnAmount);
-				
-			}
-			
+						
 			uint256 feeRewardAmount = 0;
 			
 			if(_feeRewardPct > 0 && _feeRewardAddress != address(0))  {
@@ -178,7 +154,7 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 				
 			}
 			
-			amount = amount.sub(feeBurnAmount).sub(feeRewardAmount);
+			amount = amount.sub(feeRewardAmount);
 			
 		}
 
@@ -186,21 +162,13 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
         emit Transfer(sender, recipient, amount);
     }
 	
-	function burn(uint256 amount) external {
-        _cap=_cap.sub(amount);
-        _burn(_msgSender(), amount);
-    }
-
+	
     function name() public view override returns (string memory) {
         return _name;
     }
 
     function symbol() public view override returns (string memory) {
         return _symbol;
-    }
-
-    function cap() public view returns (uint256) {
-        return _cap;
     }
     
     function limit() public view returns (uint256) {
@@ -255,21 +223,9 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
 
-        _beforeTokenTransfer(address(0), account, amount);
-
         _totalSupply = _totalSupply.add(amount);
         _balances[account] = _balances[account].add(amount);
         emit Transfer(address(0), account, amount);
-    }
-
-    function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
-
-        _beforeTokenTransfer(account, address(0), amount);
-
-        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
-        _totalSupply = _totalSupply.sub(amount);
-        emit Transfer(account, address(0), amount);
     }
 
     function _approve(address owner, address spender, uint256 amount) internal virtual {

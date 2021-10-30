@@ -13,13 +13,11 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
-  const accounts = await hre.ethers.getSigners();
+  const [deployer] = await hre.ethers.getSigners();
 
-  const tokenCap = 300000000;
   const buyLimit = 100;
-  const feeBurnPct = 0;
   const feeRewardPct = 750;
-  const feeRewardAddress = accounts[0].address;
+  const feeRewardAddress = deployer.address;
   const router = "0x10ed43c718714eb63d5aa57b78b54704e256024e";
   // We get the contract to deploy
   const Brainiac = await hre.ethers.getContractFactory("Brainiac");
@@ -29,9 +27,7 @@ async function main() {
   console.log("Brainiac deployed to:", brainiac.address);
 
   const initializer = await brainiac.initialize(
-    tokenCap,
     buyLimit,
-    feeBurnPct,
     feeRewardPct,
     feeRewardAddress,
     router

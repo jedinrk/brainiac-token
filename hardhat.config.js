@@ -29,8 +29,7 @@ module.exports = {
     },
     hardhat: {
       forking: {
-        url: "https://speedy-nodes-nyc.moralis.io/c824a9937ea73ef02c0c195f/bsc/mainnet/archive",
-        blockNumber: 11975624
+        url: "https://speedy-nodes-nyc.moralis.io/c824a9937ea73ef02c0c195f/bsc/mainnet",
       }
     },
     ropsten: {
@@ -38,6 +37,18 @@ module.exports = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    testnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chainId: 97,
+      gasPrice: 20000000000,
+      accounts: {mnemonic: process.env.MNEMONIC}
+    },
+    mainnet: {
+      url: "https://bsc-dataseed.binance.org/",
+      chainId: 56,
+      gasPrice: 20000000000,
+      accounts: {mnemonic: process.env.MNEMONIC}
+    }
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
