@@ -40,11 +40,15 @@ describe("Brainiac contract", function () {
 
   it("should be able to transfer from an account to account without fees", async function () {
     const transferAmount = 50;
+    const totalSupply = await brainiac.totalSupply();
+
     await brainiac.transfer(addr1.address, transferAmount);
 
     const owner_balance = await brainiac.balanceOf(owner.address);
     const addr1_balance = await brainiac.balanceOf(addr1.address);
     
     expect(addr1_balance.toString()).to.equal(transferAmount.toString());
+
+    //expect(owner_balance.toString()).to.equal((totalSupply-50).toString());
   });
 });
