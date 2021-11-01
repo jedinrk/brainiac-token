@@ -26,12 +26,12 @@ contract LGEWhitelisted is ContextUpgradeSafe {
     
     event WhitelisterTransferred(address indexed previousWhitelister, address indexed newWhitelister);
     
-	function __LGEWhitelisted_init() internal initializer {
+	function __LGEWhitelisted_init() internal {
         __Context_init_unchained();
         __LGEWhitelisted_init_unchained();
     }
 	
-	function __LGEWhitelisted_init_unchained() internal initializer {
+	function __LGEWhitelisted_init_unchained() internal {
 		_whitelister = _msgSender();
 
     }

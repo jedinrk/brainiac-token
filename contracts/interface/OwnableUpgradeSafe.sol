@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Initializable.sol";
 import "./ContextUpgradeSafe.sol";
 
 /**
@@ -16,7 +15,7 @@ import "./ContextUpgradeSafe.sol";
  * `onlyOwner`, which can be applied to your functions to restrict their use to
  * the owner.
  */
-contract OwnableUpgradeSafe is Initializable, ContextUpgradeSafe {
+contract OwnableUpgradeSafe is ContextUpgradeSafe {
     address private _owner;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
@@ -25,12 +24,12 @@ contract OwnableUpgradeSafe is Initializable, ContextUpgradeSafe {
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
 
-    function __Ownable_init() internal initializer {
+    function __Ownable_init() internal {
         __Context_init_unchained();
         __Ownable_init_unchained();
     }
 
-    function __Ownable_init_unchained() internal initializer {
+    function __Ownable_init_unchained() internal {
 
 
         address msgSender = _msgSender();

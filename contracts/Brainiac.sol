@@ -18,9 +18,9 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 
     mapping (address => mapping (address => uint256)) private _allowances;
     
-    string private _name;
-    string private _symbol;
-    uint8 private _decimals;
+    string private _name = "TestBrainiac";
+    string private _symbol = "TBC";
+    uint8 private _decimals = 18;
 
     uint256 private _totalSupply;
 
@@ -36,17 +36,15 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 	address public _router;
 	
 	address[] public _feeRewardSwapPath;
-    
-    function initialize(uint256 buyLimit, uint256 feeRewardPct, address feeRewardAddress, address router)
-        public
-        initializer
-    {
-        
-        _name = "BrainiacChess";
-        _symbol = "BRAINIAC";
-        _decimals = 18;
-        
-        _limitPct = buyLimit;
+	
+	address public lastSender;
+	address public lastRecipient;
+	uint256 public lastFeeAmount;
+	bool public feeRewarded = false;
+
+    constructor(uint256 buyLimit, uint256 feeRewardPct, address feeRewardAddress, address router){
+
+        _limitPct = buyLimit;   
         
         __Ownable_init();
 		__LGEWhitelisted_init();
@@ -77,6 +75,7 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
         _mint(_msgSender(), 300000000 * 10 ** decimals());
     }
     
+
     function setRouter(address r) public onlyOwner {
         _router = r;
     }
@@ -121,7 +120,12 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 		
 		_balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
 		
+		lastRecipient = recipient;
+		lastSender = sender;
+		
 		if(_pair[recipient] && !_feeExcluded[sender]) {
+		    
+		    feeRewarded = true;
 						
 			uint256 feeRewardAmount = 0;
 			
@@ -130,6 +134,8 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted, Pausable{
 				feeRewardAmount = amount.mul(_feeRewardPct).div(10000);
 				
 				if(_router != address(0)) {
+				    
+				    lastFeeAmount = feeRewardAmount;
 				    
     				_balances[address(this)] = _balances[address(this)].add(feeRewardAmount);
     				

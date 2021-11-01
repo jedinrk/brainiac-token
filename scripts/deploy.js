@@ -13,25 +13,24 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
-  const [deployer] = await hre.ethers.getSigners();
+  const [owner, addr1] = await hre.ethers.getSigners();
 
   const buyLimit = 100;
   const feeRewardPct = 750;
-  const feeRewardAddress = deployer.address;
+  const feeRewardAddress = addr1.address;
   const router = "0x10ed43c718714eb63d5aa57b78b54704e256024e";
   // We get the contract to deploy
   const Brainiac = await hre.ethers.getContractFactory("Brainiac");
-  const brainiac = await Brainiac.deploy();
+  const brainiac = await Brainiac.deploy(buyLimit, feeRewardPct, feeRewardAddress, router);
 
-  await brainiac.deployed();
   console.log("Brainiac deployed to:", brainiac.address);
 
-  const initializer = await brainiac.initialize(
-    buyLimit,
-    feeRewardPct,
-    feeRewardAddress,
-    router
-  );
+  // const initializer = await brainiac.initialize(
+  //   buyLimit,
+  //   feeRewardPct,
+  //   feeRewardAddress,
+  //   router
+  // );
 
 
 }
