@@ -8,6 +8,7 @@ describe("Brainiac contract", function () {
   const buyLimit = 100;
   const feeRewardPct = 750;
   let feeRewardAddress;
+  let feeReward;
   const routerAddr = process.env.ROUTER_ADDRESS;
   const factoryAddr = process.env.FACTORY_ADDRESS;
   let routerInstance, factoryInstance, wbnbInstance;
@@ -108,14 +109,18 @@ describe("Brainiac contract", function () {
     let tokenBalanceBeforeSwap = await brainiac.balanceOf(user1.address);
     console.log("tokenBalanceBeforeSwap", tokenBalanceBeforeSwap.toString());
 
+    const _feeRewardPct = await brainiac._feeRewardPct();
     const amounts = await routerInstance.getAmountsOut(tokenAmountIn, [
       brainiac.address,
       WBNB,
     ]);
 
     const amountOut = amounts[1];
-    const expectedBrainToken = amountOut;
-    console.log("amountOut ", expectedBrainToken.toString());
+    feeReward = Math.floor((amountOut * _feeRewardPct / 10000));
+    const expectedBrainToken = amountOut - feeReward;
+    console.log("feeReward ", feeReward);
+    console.log("amountOut ", amountOut.toString());
+    console.log("expectedBrainToken ", expectedBrainToken.toString());
 
     await routerInstance
       .connect(user1)
@@ -130,7 +135,7 @@ describe("Brainiac contract", function () {
     let brainToken = await brainiac.connect(user1).balanceOf(user1.address);
     const actualBrainToken = brainToken.toString();
 
-    expect(expectedBrainToken).to.equal(actualBrainToken);
+    expect(expectedBrainToken.toString()).to.equal(actualBrainToken);
   });
 
   it("Should ensure the fee has been collected after the swap", async () => {
@@ -138,6 +143,7 @@ describe("Brainiac contract", function () {
       .connect(user2)
       .balanceOf(feeRewardAddress);
     console.log("brainiacFeeBalance ", brainiacFeeBalance.toString());
+    expect(brainiacFeeBalance.toString()).to.equal(feeReward.toString());
   });
 });
 
