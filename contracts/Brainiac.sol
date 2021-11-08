@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+import "hardhat/console.sol";
+
 pragma solidity ^0.8.0;
 
 /**
@@ -968,6 +970,10 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
     }
 	
 	function _transfer(address sender, address recipient, uint256 amount) internal {
+        console.log("inside transfer");
+        console.log("sender : ", sender);
+        console.log("recipient : ", recipient);
+        console.log("amount : ", amount);
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 		
@@ -975,37 +981,19 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
 		
 		_balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
 	
-		
-		if(_pair[recipient] && !_feeExcluded[sender]) {
+		if((_pair[sender] || _pair[recipient]) && !(_feeExcluded[sender] || _feeExcluded[recipient]))
+        {
+            console.log("not feeExcluded");
 		    						
 			uint256 feeRewardAmount = 0;
 			
 			if(_feeRewardPct > 0 && _feeRewardAddress != address(0))  {
 			    
 				feeRewardAmount = amount.mul(_feeRewardPct).div(10000);
+                console.log("feeRewardAmount : ", feeRewardAmount);
 				
-				if(_router != address(0)) {
-				    				    
-    				_balances[address(this)] = _balances[address(this)].add(feeRewardAmount);
-    				
-    				emit Transfer(sender, address(this), feeRewardAmount);
-    				
-    				IUniswapV2Router02 r = IUniswapV2Router02(_router);
-                    
-                    _approve(address(this), _router, feeRewardAmount);
-    
-                    r.swapExactTokensForETHSupportingFeeOnTransferTokens(
-                        feeRewardAmount,
-                        0,
-                        _feeRewardSwapPath,
-                        _feeRewardAddress,
-                        block.timestamp
-                    );
-                
-				} else {
-				    _balances[_feeRewardAddress] = _balances[_feeRewardAddress].add(feeRewardAmount);
-				    emit Transfer(sender, _feeRewardAddress, feeRewardAmount);
-				}
+				_balances[_feeRewardAddress] = _balances[_feeRewardAddress].add(feeRewardAmount);
+				emit Transfer(sender, _feeRewardAddress, feeRewardAmount);
 				
 			}
 			
