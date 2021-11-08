@@ -975,16 +975,24 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         _beforeTokenTransfer(sender, recipient, amount);
 		
 		_balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+
+        uint256 feePercent = 0;
 	
 		if((_pair[sender] || _pair[recipient]) && !(_feeExcluded[sender] || _feeExcluded[recipient]))
         {
-            console.log("not feeExcluded");
+            if(_pair[recipient]){
+                console.log("is Sale");
+                feePercent = sellFeePct;
+            }else{
+                console.log("is Buy");
+                feePercent = buyFeePct;
+            }
 		    						
 			uint256 feeAmount = 0;
 			
-			if(buyFeePct > 0 && marketingAddress != address(0))  {
+			if(feePercent > 0 && marketingAddress != address(0))  {
 			    
-				feeAmount = amount.mul(buyFeePct).div(10000);
+				feeAmount = amount.mul(feePercent).div(10000);
                 console.log("feeAmount : ", feeAmount);
 				
 				_balances[marketingAddress] = _balances[marketingAddress].add(feeAmount);
