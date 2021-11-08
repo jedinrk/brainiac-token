@@ -5,9 +5,10 @@ const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
 describe("Brainiac contract", function () {
   let Brainiac, brainiac, owner, user0, user1, user2;
-  const buyLimit = 100;
-  const feeRewardPct = 750;
-  let feeRewardAddress;
+  const buyLimit = 100; //1%
+  const buyFeePercent = 500; //5%
+  const sellFeePercent = 1000; //10%
+  let marketingAddress;
   let feeReward;
   const routerAddr = process.env.ROUTER_ADDRESS;
   const factoryAddr = process.env.FACTORY_ADDRESS;
@@ -30,15 +31,17 @@ describe("Brainiac contract", function () {
     wbnbInstance = await ethers.getContractAt("IERC20", WBNB);
     [owner, user0, user1, user2] = await hre.ethers.getSigners();
 
-    feeRewardAddress = user2.address;
+    marketingAddress = user2.address;
   });
 
   it("Should have deployed Brainiac", async function () {
     Brainiac = await ethers.getContractFactory("Brainiac");
     brainiac = await Brainiac.deploy(
       buyLimit,
-      feeRewardPct,
-      feeRewardAddress,
+      buyFeePercent,
+      sellFeePercent,
+      owner.address,
+      marketingAddress,
       routerAddr
     );
 
@@ -53,7 +56,7 @@ describe("Brainiac contract", function () {
   });
 
   it("should have a buy limit", async function () {
-    const limit = await brainiac.limit();
+    const limit = await brainiac.buyLimit();
 
     expect(limit).to.equal(buyLimit);
   });
@@ -97,7 +100,7 @@ describe("Brainiac contract", function () {
   });
 
   it("Should ensure the fees collected after adding liquidity by owner is zero", async () => {
-    expect(await brainiac.balanceOf(feeRewardAddress)).to.equal(0);
+    expect(await brainiac.balanceOf(marketingAddress)).to.equal(0);
   });
 
   it("Should be able to swap a BNB for the Brainiac token", async () => {
@@ -109,14 +112,14 @@ describe("Brainiac contract", function () {
     let tokenBalanceBeforeSwap = await brainiac.balanceOf(user1.address);
     console.log("tokenBalanceBeforeSwap", tokenBalanceBeforeSwap.toString());
 
-    const _feeRewardPct = await brainiac._feeRewardPct();
+    const buyFeePct = await brainiac.buyFeePct();
     const amounts = await routerInstance.getAmountsOut(tokenAmountIn, [
       brainiac.address,
       WBNB,
     ]);
 
     const amountOut = amounts[1];
-    feeReward = Math.floor((amountOut * _feeRewardPct / 10000));
+    feeReward = Math.floor((amountOut * buyFeePct / 10000));
     const expectedBrainToken = amountOut - feeReward;
     console.log("feeReward ", feeReward);
     console.log("amountOut ", amountOut.toString());
@@ -141,7 +144,7 @@ describe("Brainiac contract", function () {
   it("Should ensure the fee has been collected after the swap", async () => {
     let brainiacFeeBalance = await brainiac
       .connect(user2)
-      .balanceOf(feeRewardAddress);
+      .balanceOf(marketingAddress);
     console.log("brainiacFeeBalance ", brainiacFeeBalance.toString());
     expect(brainiacFeeBalance.toString()).to.equal(feeReward.toString());
   });

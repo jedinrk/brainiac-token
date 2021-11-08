@@ -885,66 +885,61 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
 
     mapping(address => bool) public _feeExcluded;
 
-	uint256 public _feeRewardPct;
-	uint256 public _limitPct;
+    uint256 public buyFeePct;
+	uint256 public sellFeePct;
+	uint256 public buyLimit;
 	
-	address public _feeRewardAddress;
+	address public marketingAddress;
 
 	mapping(address => bool) public _pair;
 	
-	address public _router;
+	address public router;
 	
-	address[] public _feeRewardSwapPath;
-
     bool private _paused;
 	
-    constructor(uint256 buyLimit, uint256 feeRewardPct, address feeRewardAddress, address router){
+    constructor(uint256 _buyLimit, uint256 _buyFeePct, uint256 _sellFeePct, address _owner, address _marketingAddress, address _router){
 
         _paused = false;
-        _limitPct = buyLimit;   
+        buyLimit = _buyLimit;   
         
         __Ownable_init();
 		__LGEWhitelisted_init();
 		
-		_router = router;
+		router = _router;
 		
-		address[] memory feeRewardSwapPath;
-		
-		if(_router != address(0)) {
+		if(router != address(0)) {
 		
     		IUniswapV2Router02 r = IUniswapV2Router02(router);
     		IUniswapV2Factory f = IUniswapV2Factory(r.factory());
     		
             setPair(f.createPair(address(this), r.WETH()), true);
-            
-            feeRewardSwapPath = new address[](2);
-                
-            feeRewardSwapPath[0] = address(this);
-            feeRewardSwapPath[1] = r.WETH();
         
 		}
 		
-		setFees(feeRewardPct, feeRewardSwapPath, feeRewardAddress);
+		setFees(_buyFeePct, _sellFeePct);
+        setMarketingAddress(_marketingAddress);
 		
-		setFeeExcluded(_msgSender(), true);
+		setFeeExcluded(_owner, true);
 		setFeeExcluded(address(this), true);
 
-        _mint(_msgSender(), 300000000 * 10 ** decimals());
+        _mint(_owner, 300000000 * 10 ** decimals());
     }
     
 
-    function setRouter(address r) public onlyOwner {
-        _router = r;
+    function setRouter(address routerAddress) public onlyOwner {
+        router = routerAddress;
     }
     
-    function setFees(uint256 feeRewardPct, address[] memory feeRewardSwapPath, address feeRewardAddress) public onlyOwner {
-        require(feeRewardSwapPath.length != 1, "Invalid path");
-		require(feeRewardAddress != address(0), "Fee reward address must not be zero address");
+    function setFees(uint256 _buyFeePct,uint256 _sellFeePct) public onlyOwner {
+        
+		buyFeePct = _buyFeePct;
+        sellFeePct = _sellFeePct;
 		
-		_feeRewardPct = feeRewardPct;
-		_feeRewardSwapPath = feeRewardSwapPath;
-		_feeRewardAddress = feeRewardAddress;
-		
+    }
+
+    function setMarketingAddress(address _marketingAddress) public onlyOwner {
+		require(_marketingAddress != address(0), "Marketing addr must not be zero");
+		marketingAddress = _marketingAddress;
     }
 
 	function setPair(address a, bool pair) public onlyOwner {
@@ -955,8 +950,8 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         _feeExcluded[a] = excluded;
     }
 
-    function setBuyLimit(uint256 limitPct) public onlyOwner {
-        _limitPct = limitPct;
+    function setBuyLimit(uint256 _buyLimit) public onlyOwner {
+        buyLimit = _buyLimit;
     }
     
     
@@ -965,7 +960,7 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
 		LGEWhitelisted._applyLGEWhitelist(sender, recipient, amount);
 		
         // Standard DEX transfers with fee
-        require(amount <= _totalSupply.mul(_limitPct).div(10000), "Out of limit per transaction");
+        require(amount <= _totalSupply.mul(buyLimit).div(10000), "Out of limit per transaction");
 
     }
 	
@@ -985,19 +980,19 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         {
             console.log("not feeExcluded");
 		    						
-			uint256 feeRewardAmount = 0;
+			uint256 feeAmount = 0;
 			
-			if(_feeRewardPct > 0 && _feeRewardAddress != address(0))  {
+			if(buyFeePct > 0 && marketingAddress != address(0))  {
 			    
-				feeRewardAmount = amount.mul(_feeRewardPct).div(10000);
-                console.log("feeRewardAmount : ", feeRewardAmount);
+				feeAmount = amount.mul(buyFeePct).div(10000);
+                console.log("feeAmount : ", feeAmount);
 				
-				_balances[_feeRewardAddress] = _balances[_feeRewardAddress].add(feeRewardAmount);
-				emit Transfer(sender, _feeRewardAddress, feeRewardAmount);
+				_balances[marketingAddress] = _balances[marketingAddress].add(feeAmount);
+				emit Transfer(sender, marketingAddress, feeAmount);
 				
 			}
 			
-			amount = amount.sub(feeRewardAmount);
+			amount = amount.sub(feeAmount);
 			
 		}
 
@@ -1014,10 +1009,6 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         return _symbol;
     }
     
-    function limit() public view returns (uint256) {
-        return _limitPct;
-    }
-
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
