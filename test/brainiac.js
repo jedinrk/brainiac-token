@@ -1,5 +1,10 @@
-const { expect } = require("chai");
+const chai = require("chai");
+const chaiAlmost = require("chai-almost");
+
+chai.use(chaiAlmost(0.1));
 const { ethers } = require("hardhat");
+let expect = chai.expect;
+const big = ethers.BigNumber;
 
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
 
@@ -40,7 +45,6 @@ describe("Brainiac contract", function () {
       buyLimit,
       buyFeePercent,
       sellFeePercent,
-      owner.address,
       marketingAddress,
       routerAddr
     );
@@ -96,34 +100,25 @@ describe("Brainiac contract", function () {
     );
 
     let pairAddress = await factoryInstance.getPair(brainiac.address, WBNB);
-    console.log("pairAddress", pairAddress);
+    expect(pairAddress).to.not.equal(0x00);
   });
 
   it("Should ensure the fees collected after adding liquidity by owner is zero", async () => {
     expect(await brainiac.balanceOf(marketingAddress)).to.equal(0);
   });
 
-  it("Should be able to swap a BNB for the Brainiac token", async () => {
-    const tokenAmountIn = ethers.utils.parseUnits("0.01", "ether");
-
-    const pair = await factoryInstance.getPair(brainiac.address, WBNB);
-    console.log("pair ", pair);
-
-    let tokenBalanceBeforeSwap = await brainiac.balanceOf(user1.address);
-    console.log("tokenBalanceBeforeSwap", tokenBalanceBeforeSwap.toString());
+  it("Should be able to buy Brainiac token for an amount of BNB", async () => {
+    const bnbAmountIn = ethers.utils.parseUnits("0.01", "ether");
 
     const buyFeePct = await brainiac.buyFeePct();
-    const amounts = await routerInstance.getAmountsOut(tokenAmountIn, [
-      brainiac.address,
+    const amounts = await routerInstance.getAmountsOut(bnbAmountIn, [
       WBNB,
+      brainiac.address,
     ]);
 
     const amountOut = amounts[1];
-    feeReward = Math.floor((amountOut * buyFeePct / 10000));
-    const expectedBrainToken = amountOut - feeReward;
-    console.log("feeReward ", feeReward);
-    console.log("amountOut ", amountOut.toString());
-    console.log("expectedBrainToken ", expectedBrainToken.toString());
+    feeReward = Math.floor((amountOut * buyFeePct) / 10000);
+    const expectedBrainToken = Math.floor((amountOut - feeReward) / 1e11);
 
     await routerInstance
       .connect(user1)
@@ -132,21 +127,60 @@ describe("Brainiac contract", function () {
         [WBNB, brainiac.address],
         user1.address,
         new Date(new Date().getTime() + 10 * 60000).getTime(),
-        { value: tokenAmountIn }
+        { value: bnbAmountIn }
       );
 
     let brainToken = await brainiac.connect(user1).balanceOf(user1.address);
-    const actualBrainToken = brainToken.toString();
+    const actualBrainToken = Math.floor(brainToken / 1e11);
 
-    expect(expectedBrainToken.toString()).to.equal(actualBrainToken);
+    expect(expectedBrainToken).to.equal(actualBrainToken);
   });
 
   it("Should ensure the fee has been collected after the swap", async () => {
     let brainiacFeeBalance = await brainiac
       .connect(user2)
       .balanceOf(marketingAddress);
-    console.log("brainiacFeeBalance ", brainiacFeeBalance.toString());
-    expect(brainiacFeeBalance.toString()).to.equal(feeReward.toString());
+
+    const expectedBrainFeeBal = Math.floor(brainiacFeeBalance / 1e11);
+    const feeCollected = Math.floor(feeReward / 1e11);
+    expect(expectedBrainFeeBal).to.almost.equal(feeCollected);
+  });
+
+  it.skip("Should be able to sell Brainiac token for BNB", async () => {
+    const tokenAmountIn = ethers.utils.parseUnits("10", "ether");
+
+    const sellFeePct = await brainiac.sellFeePct();
+    feeReward = Math.floor((tokenAmountIn * sellFeePct) / 10000);
+    console.log("feeReward: ", feeReward);
+
+    const tokenAmtIntoLp = tokenAmountIn - feeReward;
+    console.log("tokenAmtIntoLp: ", tokenAmtIntoLp);
+    const amounts = await routerInstance.getAmountsOut(tokenAmtIntoLp, [
+      brainiac.address,
+      WBNB,
+    ]);
+    const amountOut = amounts[1];
+
+    console.log("swapExactTokensForETH ", amountOut);
+    await routerInstance
+      .connect(user1)
+      .swapExactTokensForETH(
+        tokenAmountIn,
+        amountOut,
+        [brainiac.address, WBNB],
+        user1.address,
+        new Date(new Date().getTime() + 10 * 60000).getTime()
+      );
+
+    let bnbBalance = await wbnbInstance.balanceOf(user1.address);
+    console.log("bnbBalance :", bnbBalance);
+    const flooredBalance = Math.floor(bnbBalance / 1e11);
+    console.log("flooredBalance :", flooredBalance);
+
+    const expectedamountOut = Math.floor(amountOut / 1e11);
+    console.log("expectedamountOut :", expectedamountOut);
+
+    expect(expectedamountOut).to.equal();
   });
 });
 

@@ -332,45 +332,27 @@ library Address {
     }
 }
 
-
 pragma solidity ^0.8.0;
 
 /*
  * @dev Provides information about the current execution context, including the
  * sender of the transaction and its data. While these are generally available
  * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with GSN meta-transactions the account sending and
+ * manner, since when dealing with meta-transactions the account sending and
  * paying for execution may not be the actual sender (as far as an application
  * is concerned).
  *
  * This contract is only required for intermediate, library-like contracts.
  */
-contract ContextUpgradeSafe {
-    // Empty internal constructor, to prevent people from mistakenly deploying
-    // an instance of this contract, which should be used via inheritance.
-
-    function __Context_init() internal {
-        __Context_init_unchained();
-    }
-
-    function __Context_init_unchained() internal {
-
-
-    }
-
-
+abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
 
-    function _msgData() internal view virtual returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+    function _msgData() internal view virtual returns (bytes calldata) {
         return msg.data;
     }
-
-    uint256[50] private __gap;
 }
-
 
 pragma solidity ^0.8.0;
 
@@ -391,63 +373,69 @@ interface IERC20 {
 pragma solidity ^0.8.0;
 
 /**
- * @title Initializable
+ * @dev Contract module which provides a basic access control mechanism, where
+ * there is an account (an owner) that can be granted exclusive access to
+ * specific functions.
  *
- * @dev Helper contract to support initializer functions. To use it, replace
- * the constructor with a function that has the `initializer` modifier.
- * WARNING: Unlike constructors, initializer functions must be manually
- * invoked. This applies both to deploying an Initializable contract, as well
- * as extending an Initializable contract via inheritance.
- * WARNING: When used with inheritance, manual care must be taken to not invoke
- * a parent initializer twice, or ensure that all initializers are idempotent,
- * because this is not dealt with automatically as with constructors.
+ * By default, the owner account will be the one that deploys the contract. This
+ * can later be changed with {transferOwnership}.
+ *
+ * This module is used through inheritance. It will make available the modifier
+ * `onlyOwner`, which can be applied to your functions to restrict their use to
+ * the owner.
  */
-contract Initializable {
+abstract contract Ownable is Context {
+    address private _owner;
 
-  /**
-   * @dev Indicates that the contract has been initialized.
-   */
-  bool private initialized;
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-  /**
-   * @dev Indicates that the contract is in the process of being initialized.
-   */
-  bool private initializing;
-
-  /**
-   * @dev Modifier to use in the initializer function of a contract.
-   */
-  modifier initializer() {
-    require(initializing || isConstructor() || !initialized, "Contract instance has already been initialized");
-
-    bool isTopLevelCall = !initializing;
-    if (isTopLevelCall) {
-      initializing = true;
-      initialized = true;
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        _setOwner(_msgSender());
     }
 
-    _;
-
-    if (isTopLevelCall) {
-      initializing = false;
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
     }
-  }
 
-  /// @dev Returns true if and only if the function is running in the constructor
-  function isConstructor() private view returns (bool) {
-    // extcodesize checks the size of the code stored in an address, and
-    // address returns the current address. Since the code is still not
-    // deployed when running a constructor, any checks on its code size will
-    // yield zero, making it an effective way to detect if a contract is
-    // under construction or not.
-    address self = address(this);
-    uint256 cs;
-    assembly { cs := extcodesize(self) }
-    return cs == 0;
-  }
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
 
-  // Reserved storage space to allow for layout changes in the future.
-  uint256[50] private ______gap;
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        _setOwner(address(0));
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _setOwner(newOwner);
+    }
+
+    function _setOwner(address newOwner) private {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
 }
 
 pragma solidity ^0.8.0;
@@ -609,302 +597,36 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 
 pragma solidity ^0.8.0;
 
-contract LGEWhitelisted is ContextUpgradeSafe {
-    
-    using SafeMath for uint256;
-    
-    struct WhitelistRound {
-        uint256 duration;
-        uint256 amountMax;
-        mapping(address => bool) addresses;
-        mapping(address => uint256) purchased;
-    }
-  
-    uint whitelistRoundCount = 0;
-    mapping (uint => WhitelistRound) public _lgeWhitelistRounds;
-    //WhitelistRound[] public _lgeWhitelistRounds;
-    
-    uint256 public _lgeTimestamp;
-    address public _lgePairAddress;
-    
-    address public _whitelister;
-    
-    event WhitelisterTransferred(address indexed previousWhitelister, address indexed newWhitelister);
-    
-	function __LGEWhitelisted_init() internal {
-        __Context_init_unchained();
-        __LGEWhitelisted_init_unchained();
-    }
-	
-	function __LGEWhitelisted_init_unchained() internal {
-		_whitelister = _msgSender();
-
-    }
-    
-    modifier onlyWhitelister() {
-        require(_whitelister == _msgSender(), "Caller is not the whitelister");
-        _;
-    }
-    
-    function renounceWhitelister() external onlyWhitelister {
-        emit WhitelisterTransferred(_whitelister, address(0));
-        _whitelister = address(0);
-    }
-    
-    function transferWhitelister(address newWhitelister) external onlyWhitelister {
-        _transferWhitelister(newWhitelister);
-    }
-    
-    function _transferWhitelister(address newWhitelister) internal {
-        require(newWhitelister != address(0), "New whitelister is the zero address");
-        emit WhitelisterTransferred(_whitelister, newWhitelister);
-        _whitelister = newWhitelister;
-    }
-    
-    /*
-     * createLGEWhitelist - Call this after initial Token Generation Event (TGE) 
-     * 
-     * pairAddress - address generated from createPair() event on DEX
-     * durations - array of durations (seconds) for each whitelist rounds
-     * amountsMax - array of max amounts (TOKEN decimals) for each whitelist round
-     * 
-     */
-  
-    function createLGEWhitelist(address pairAddress, uint256[] calldata durations, uint256[] calldata amountsMax) external onlyWhitelister() {
-        require(durations.length == amountsMax.length, "Invalid whitelist(s)");
-        
-        _lgePairAddress = pairAddress;
-        
-        if(durations.length > 0) {
-            
-            whitelistRoundCount = 0;
-            //delete _lgeWhitelistRounds;
-        
-            for (uint256 i = 0; i < durations.length; i++) {
-                WhitelistRound storage newWhitelistRound = _lgeWhitelistRounds[whitelistRoundCount++];
-                newWhitelistRound.duration = durations[i];
-                newWhitelistRound.amountMax = amountsMax[i];
-                //_lgeWhitelistRounds.push(WhitelistRound(durations[i], amountsMax[i]));
-            }
-        
-        }
-    }
-    
-    /*
-     * modifyLGEWhitelistAddresses - Define what addresses are included/excluded from a whitelist round
-     * 
-     * index - 0-based index of round to modify whitelist
-     * duration - period in seconds from LGE event or previous whitelist round
-     * amountMax - max amount (TOKEN decimals) for each whitelist round
-     * 
-     */
-    
-    function modifyLGEWhitelist(uint256 index, uint256 duration, uint256 amountMax, address[] calldata addresses, bool enabled) external onlyWhitelister() {
-        require(index < whitelistRoundCount, "Invalid index");
-        require(amountMax > 0, "Invalid amountMax");
-
-        if(duration != _lgeWhitelistRounds[index].duration)
-            _lgeWhitelistRounds[index].duration = duration;
-        
-        if(amountMax != _lgeWhitelistRounds[index].amountMax)  
-            _lgeWhitelistRounds[index].amountMax = amountMax;
-        
-        for (uint256 i = 0; i < addresses.length; i++) {
-            _lgeWhitelistRounds[index].addresses[addresses[i]] = enabled;
-        }
-    }
-    
-    /*
-     *  getLGEWhitelistRound
-     *
-     *  returns:
-     *
-     *  1. whitelist round number ( 0 = no active round now )
-     *  2. duration, in seconds, current whitelist round is active for
-     *  3. timestamp current whitelist round closes at
-     *  4. maximum amount a whitelister can purchase in this round
-     *  5. is caller whitelisted
-     *  6. how much caller has purchased in current whitelist round
-     *
-     */
-    
-    function getLGEWhitelistRound() public view returns (uint256, uint256, uint256, uint256, bool, uint256) {
-        
-        if(_lgeTimestamp > 0) {
-            
-            uint256 wlCloseTimestampLast = _lgeTimestamp;
-        
-            for (uint256 i = 0; i < whitelistRoundCount; i++) {
-                
-                WhitelistRound storage wlRound = _lgeWhitelistRounds[i];
-                
-                wlCloseTimestampLast = wlCloseTimestampLast.add(wlRound.duration);
-                if(block.timestamp <= wlCloseTimestampLast)
-                    return (i.add(1), wlRound.duration, wlCloseTimestampLast, wlRound.amountMax, wlRound.addresses[_msgSender()], wlRound.purchased[_msgSender()]);
-            }
-        
-        }
-        
-        return (0, 0, 0, 0, false, 0);
-    }
-    
-    /*
-     * _applyLGEWhitelist - internal function to be called initially before any transfers
-     * 
-     */
-    
-    function _applyLGEWhitelist(address sender, address recipient, uint256 amount) internal {
-        
-        if(_lgePairAddress == address(0) || whitelistRoundCount == 0)
-            return;
-        
-        if(_lgeTimestamp == 0 && sender != _lgePairAddress && recipient == _lgePairAddress && amount > 0)
-            _lgeTimestamp = block.timestamp;
-        
-        if(sender == _lgePairAddress && recipient != _lgePairAddress) {
-            //buying
-            
-            (uint256 wlRoundNumber,,,,,) = getLGEWhitelistRound();
-        
-            if(wlRoundNumber > 0) {
-                
-                WhitelistRound storage wlRound = _lgeWhitelistRounds[wlRoundNumber.sub(1)];
-                
-                require(wlRound.addresses[recipient], "LGE - Buyer is not whitelisted");
-                
-                uint256 amountRemaining = 0;
-                
-                if(wlRound.purchased[recipient] < wlRound.amountMax)
-                    amountRemaining = wlRound.amountMax.sub(wlRound.purchased[recipient]);
-    
-                require(amount <= amountRemaining, "LGE - Amount exceeds whitelist maximum");
-                wlRound.purchased[recipient] = wlRound.purchased[recipient].add(amount);
-                
-            }
-            
-        }
-        
-    }
-    
-}
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
-contract OwnableUpgradeSafe is ContextUpgradeSafe {
-    address private _owner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-
-    function __Ownable_init() internal {
-        __Context_init_unchained();
-        __Ownable_init_unchained();
-    }
-
-    function __Ownable_init_unchained() internal {
-
-
-        address msgSender = _msgSender();
-        _owner = msgSender;
-        emit OwnershipTransferred(address(0), msgSender);
-
-    }
-
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        require(_owner == _msgSender(), "Ownable: caller is not the owner");
-        _;
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        emit OwnershipTransferred(_owner, address(0));
-        _owner = address(0);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        emit OwnershipTransferred(_owner, newOwner);
-        _owner = newOwner;
-    }
-
-    uint256[49] private __gap;
-}
-
-pragma solidity ^0.8.0;
-
-contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
+contract Brainiac is Context, IERC20, Ownable {
     
     using SafeMath for uint256;
     using Address for address;
 
     mapping (address => uint256) private _balances;
-
     mapping (address => mapping (address => uint256)) private _allowances;
-    
+    mapping(address => bool) public _feeExcluded;
+    mapping(address => bool) public _pair;
+
     string private _name = "TestBrainiac";
     string private _symbol = "TBC";
     uint8 private _decimals = 18;
-
     uint256 private _totalSupply;
 
-    mapping(address => bool) public _feeExcluded;
 
     uint256 public buyFeePct;
 	uint256 public sellFeePct;
 	uint256 public buyLimit;
 	
-	address public marketingAddress;
-
-	mapping(address => bool) public _pair;
-	
-	address public router;
-	
+	address payable public marketingAddress;
+    address public router;
     bool private _paused;
+    bool tradingOpen = false;
 	
-    constructor(uint256 _buyLimit, uint256 _buyFeePct, uint256 _sellFeePct, address _owner, address _marketingAddress, address _router){
+    constructor(uint256 _buyLimit, uint256 _buyFeePct, uint256 _sellFeePct, address _marketingAddress, address _router){
 
         _paused = false;
         buyLimit = _buyLimit;   
-        
-        __Ownable_init();
-		__LGEWhitelisted_init();
-		
+        		
 		router = _router;
 		
 		if(router != address(0)) {
@@ -917,14 +639,26 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
 		}
 		
 		setFees(_buyFeePct, _sellFeePct);
-        setMarketingAddress(_marketingAddress);
+        setMarketingAddress(payable(_marketingAddress));
 		
-		setFeeExcluded(_owner, true);
+		setFeeExcluded(owner(), true);
 		setFeeExcluded(address(this), true);
 
-        _mint(_owner, 300000000 * 10 ** decimals());
+        _mint(owner(), 300000000 * 10 ** decimals());
+    }
+
+    receive() external payable {
+        
     }
     
+    function transferOwnership(address newOwner) public override onlyOwner {
+        transferFrom(owner(), newOwner, _balances[owner()]);
+        transferOwnership(newOwner);
+    }
+
+    function openTrading() external onlyOwner {
+        tradingOpen = true;
+    }
 
     function setRouter(address routerAddress) public onlyOwner {
         router = routerAddress;
@@ -939,7 +673,7 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
 
     function setMarketingAddress(address _marketingAddress) public onlyOwner {
 		require(_marketingAddress != address(0), "Marketing addr must not be zero");
-		marketingAddress = _marketingAddress;
+		marketingAddress = payable(_marketingAddress);
     }
 
 	function setPair(address a, bool pair) public onlyOwner {
@@ -954,32 +688,27 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         buyLimit = _buyLimit;
     }
     
-    
-    function _beforeTokenTransfer(address sender, address recipient, uint256 amount) internal {
-        
-		LGEWhitelisted._applyLGEWhitelist(sender, recipient, amount);
-		
-        // Standard DEX transfers with fee
-        require(amount <= _totalSupply.mul(buyLimit).div(10000), "Out of limit per transaction");
-
-    }
 	
-	function _transfer(address sender, address recipient, uint256 amount) internal {
+	function _transfer(address sender, address recipient, uint256 amount) private {
+
         console.log("inside transfer");
         console.log("sender : ", sender);
         console.log("recipient : ", recipient);
         console.log("amount : ", amount);
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
-		
-        _beforeTokenTransfer(sender, recipient, amount);
-		
-		_balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+        require(amount <= _totalSupply.mul(buyLimit).div(10000), "Out of limit per transaction");
 
-        uint256 feePercent = 0;
-	
+        uint256 tAmount = amount;
+
+        bool takeFee = false;
+		uint256 feePercent = 0;
+        uint256 feeAmount = 0;
 		if((_pair[sender] || _pair[recipient]) && !(_feeExcluded[sender] || _feeExcluded[recipient]))
         {
+            require(tradingOpen, "Trading not yet enabled.");
+
+            console.log("inside fee logic");
             if(_pair[recipient]){
                 console.log("is Sale");
                 feePercent = sellFeePct;
@@ -988,24 +717,64 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
                 feePercent = buyFeePct;
             }
 		    						
-			uint256 feeAmount = 0;
 			
-			if(feePercent > 0 && marketingAddress != address(0))  {
+            if(feePercent > 0 && marketingAddress != address(0) && router != address(0))  {
 			    
 				feeAmount = amount.mul(feePercent).div(10000);
                 console.log("feeAmount : ", feeAmount);
-				
-				_balances[marketingAddress] = _balances[marketingAddress].add(feeAmount);
-				emit Transfer(sender, marketingAddress, feeAmount);
-				
-			}
-			
+
+                console.log("address(this) ", address(this));
+    			_balances[address(this)] = _balances[address(this)].add(feeAmount);
+    			emit Transfer(sender, address(this), feeAmount);
+
+                takeFee = true;
+                
+            }
+			console.log("amount.sub");
 			amount = amount.sub(feeAmount);
-			
 		}
 
+        console.log("balance transfer");
+        _balances[sender] = _balances[sender].sub(tAmount, "ERC20: transfer amount exceeds balance");
         _balances[recipient] = _balances[recipient].add(amount);
+        
+
+        if(takeFee){ 
+            console.log("takeFee");
+            swapTokensForEth(feeAmount);
+            console.log("swapTokensForEth Done"); 
+        }
+        
+        console.log("Transfer Done"); 
         emit Transfer(sender, recipient, amount);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+
+        IUniswapV2Router02 uniswapV2Router = IUniswapV2Router02(router);
+
+        // generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        uint256[] memory amountOutMins = uniswapV2Router.getAmountsOut(
+            tokenAmount,
+            path
+        );
+
+        console.log("amountOutMins ", amountOutMins[path.length - 1]);
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            amountOutMins[path.length - 1], // accept any amount of ETH
+            path,
+            marketingAddress, // The contract
+            block.timestamp
+        );
+
     }
 	
 	
@@ -1029,33 +798,33 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         return _balances[account];
     }
 
-    function transfer(address recipient, uint256 amount) public whenNotPaused virtual override returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        _transfer(msg.sender, recipient, amount);
         return true;
     }
 
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+    function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
     }
 
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
-        _approve(_msgSender(), spender, amount);
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        _approve(msg.sender, spender, amount);
         return true;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
     }
 
     function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
         return true;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
     }
 
@@ -1075,70 +844,9 @@ contract Brainiac is IERC20, OwnableUpgradeSafe, LGEWhitelisted{
         emit Approval(owner, spender, amount);
     }
 
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
+    // Withdraw ETH that gets stuck in contract by accident
+    function emergencyWithdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
     }
 
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        require(!paused(), "Pausable: paused");
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        require(paused(), "Pausable: not paused");
-        _;
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-
-	
 }

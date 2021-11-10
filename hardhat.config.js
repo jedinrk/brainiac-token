@@ -37,6 +37,7 @@ module.exports = {
     },
     forked: {
       url: "http://127.0.0.1:8545/",
+      gasPrice: 20000000000
     },
     binance: {
       url: process.env.BINANCE_RPC,
